@@ -2,6 +2,7 @@ package com.github.highoncode55.taskboard.controller;
 
 import com.github.highoncode55.taskboard.dao.BoardDAO;
 import com.github.highoncode55.taskboard.model.Board;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -15,21 +16,21 @@ public class MainViewController {
     private BoardDAO boardDAO;
     
     @FXML
-    private TilePane boardsTilePane;
+    private TilePane boardsPane;
 
     @FXML
     private Button newBoardButton;
 
     private void loadBoards(){
-        boardsTilePane.getChildren().clear();
+        boardsPane.getChildren().clear();
         List<Board> allBoards = boardDAO.getAll();
         for (Board board : allBoards){
             Node tile = populateTile(board);
-            boardsTilePane.getChildren().add(tile);
+            boardsPane.getChildren().add(tile);
         }
     }
-
-    public void handleNewBoardButton(){
+@FXML
+    public void handleNewBoardButton(ActionEvent event){
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("New Board");
         dialog.setHeaderText("Create new Board");
@@ -53,7 +54,7 @@ public class MainViewController {
         });
         return tileButton;
     }
-
+@FXML
     private void initialize(){
         this.boardDAO = new BoardDAO();
         loadBoards();

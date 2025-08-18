@@ -8,7 +8,9 @@ module com.github.highoncode55.taskboard.taskboard {
     requires org.kordamp.bootstrapfx.core;
     requires static lombok;
     requires java.sql;
-    requires com.github.highoncode55.taskboard.taskboard;
+    requires liquibase.core;
+    requires mysql.connector.j;
+
 
     opens com.github.highoncode55.taskboard to javafx.fxml;
     exports com.github.highoncode55.taskboard;

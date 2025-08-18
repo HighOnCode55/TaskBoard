@@ -10,7 +10,7 @@ import java.util.List;
 
 public class BoardDAO {
     public Board create(Board board){
-        String sql = "INSERT INTO boards (nome) VALUES (?);";
+        String sql = "INSERT INTO boards (name) VALUES (?);";
 
         try {
             Connection conn = DatabaseConnection.getConnection();
@@ -36,12 +36,12 @@ public class BoardDAO {
     }
 
     public void update(Board board){
-        String sql = "UPDATE boards SET nome=? WHERE id=?";
+        String sql = "UPDATE boards SET name=? WHERE id=?";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                pstmt.setString(1, board.getName());
-                pstmt.setLong(2, board.getId());
+                pstmt.setString(2, board.getName());
+                pstmt.setLong(1, board.getId());
                 pstmt.executeUpdate();
             } catch (SQLException e) {
                 System.err.println("Erro ao atualizar o board: " + e.getMessage());
@@ -112,7 +112,7 @@ public class BoardDAO {
 
     public List<Board> getAll() {
         List<Board> boards = new ArrayList<>();
-        String sql = "SELECT id, name FROM boards ORDER BY nome;";
+        String sql = "SELECT id, name FROM boards ORDER BY name;";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {

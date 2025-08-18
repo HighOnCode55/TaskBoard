@@ -12,6 +12,7 @@ public class ColumnDAO {
     public void delete(long columnId){
     }
     public Column getById(long columnId){
+        return null;
     }
     public List<Column> getByBoardId(long boardId){
         return null;

@@ -26,8 +26,8 @@ tasks.withType<JavaCompile> {
 }
 
 application {
-    mainModule.set("com.github.highoncode55.taskboard.taskboard")
-    mainClass.set("com.github.highoncode55.taskboard.taskboard.HelloApplication")
+    mainModule.set("com.github.highoncode55.taskboard")
+    mainClass.set("com.github.highoncode55.taskboard.TaskBoard")
 }
 
 javafx {
