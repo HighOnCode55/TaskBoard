@@ -10,6 +10,9 @@ module com.github.highoncode55.taskboard.taskboard {
     requires java.sql;
     requires liquibase.core;
     requires mysql.connector.j;
+    requires atlantafx.base;
+    requires javafx.graphics;
+    requires com.github.highoncode55.taskboard.taskboard;
 
 
     opens com.github.highoncode55.taskboard to javafx.fxml;

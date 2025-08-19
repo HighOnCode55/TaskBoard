@@ -36,6 +36,9 @@ javafx {
 }
 
 dependencies {
+    implementation("org.kordamp.ikonli:ikonli-elusive-pack:12.4.0")
+    implementation("org.kordamp.ikonli:ikonli-codicons-pack:12.4.0")
+    implementation("io.github.mkpaz:atlantafx-base:2.1.0")
     implementation("org.liquibase:liquibase-core:4.33.0")
     implementation("com.mysql:mysql-connector-j:9.4.0")
     implementation("org.projectlombok:lombok:1.18.38")

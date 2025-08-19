@@ -1,5 +1,6 @@
 package com.github.highoncode55.taskboard;
 
+import atlantafx.base.theme.NordLight;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -44,7 +45,7 @@ public class TaskBoard extends Application {
 
     @Override
     public void start(Stage stage) throws IOException, LiquibaseException {
-        runLiquibase();
+        //runLiquibase();
         FXMLLoader fxmlLoader = new FXMLLoader(TaskBoard.class.getResource("views/MainView.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 320, 240);
         stage.setTitle("Task Board");
