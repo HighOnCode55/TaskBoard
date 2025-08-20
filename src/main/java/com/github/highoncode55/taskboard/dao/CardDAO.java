@@ -11,7 +11,7 @@ import java.util.List;
 
 public class CardDAO {
     public void create(Card card){
-        String sql = "INSERT INTO cards (title, description, column_id, `order`, is_blocked) VALUES (?, ?, ?, ?, ?);";
+        String sql = "INSERT INTO cards (title, description, column_id, `order`) VALUES (?, ?, ?, ?);";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
@@ -19,7 +19,6 @@ public class CardDAO {
                 pstmt.setString(2, card.getDescription());
                 pstmt.setLong(3, card.getColumnId());
                 pstmt.setInt(4, card.getOrder());
-                pstmt.setBoolean(5, card.getIsBlocked() != null ? card.getIsBlocked() : false);
                 pstmt.executeUpdate();
                 // We could read generated keys here, but Card fields are final; skipping assignment.
             }
@@ -28,14 +27,42 @@ public class CardDAO {
         }
     }
     public void update(Card card){
-
+        String sql = "UPDATE cards SET title = ?, description = ?, column_id = ?, `order` = ? WHERE id = ?";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, card.getTitle());
+                pstmt.setString(2, card.getDescription());
+                pstmt.setLong(3, card.getColumnId());
+                pstmt.setInt(4, card.getOrder());
+                pstmt.setLong(5, card.getId());
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    // Minimal helper to update only column and order during drag and drop
+    public void updateOrderAndColumn(long cardId, long newColumnId, int newOrder) {
+        String sql = "UPDATE cards SET column_id = ?, `order` = ? WHERE id = ?";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setLong(1, newColumnId);
+                pstmt.setInt(2, newOrder);
+                pstmt.setLong(3, cardId);
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
     public void delete(long cardId){
 
     }
 
     public List<Card> getByColumnId(long columnId){
-        String sql = "SELECT id, title, description, column_id, `order`, is_blocked FROM cards WHERE column_id=? ORDER BY `order` ASC";
+        String sql = "SELECT id, title, description, column_id, `order` FROM cards WHERE column_id=? ORDER BY `order` ASC";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -48,8 +75,7 @@ public class CardDAO {
                         String description = rs.getString("description");
                         long colId = rs.getLong("column_id");
                         int order = rs.getInt("order");
-                        Boolean isBlocked = rs.getBoolean("is_blocked");
-                        cards.add(new Card(id, title, description, colId, order, isBlocked));
+                        cards.add(new Card(id, title, description, colId, order));
                     }
                     return cards;
                 }
@@ -73,8 +99,7 @@ public class CardDAO {
                         String description = rs.getString("description");
                         long columnId = rs.getLong("column_id");
                         int order = rs.getInt("order");
-                        Boolean isBlocked = rs.getBoolean("is_blocked");
-                        return new Card(id, title, description, columnId, order, isBlocked);
+                        return new Card(id, title, description, columnId, order);
                     }
                 }
                 return null;

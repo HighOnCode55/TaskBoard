@@ -1,5 +1,4 @@
 package com.github.highoncode55.taskboard.model;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -13,7 +12,7 @@ public class Column {
     private String name;
     private long id;
     private long boardId;
-    private String type;
+    private boolean isBlocked;
     private int order;
     private List<Card> cards = new ArrayList<>();
 }

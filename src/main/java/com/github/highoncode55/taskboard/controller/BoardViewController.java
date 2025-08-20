@@ -26,12 +26,20 @@ import javafx.geometry.HPos;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.TransferMode;
 
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 
 public class BoardViewController {
+    private static final DataFormat DF_COLUMN = new DataFormat("taskboard/column");
+    private static final DataFormat DF_CARD = new DataFormat("taskboard/card");
     private BoardDAO boardDAO;
     private ColumnDAO columnDAO;
     private CardDAO cardDAO;
@@ -42,7 +50,7 @@ public class BoardViewController {
 
     @FXML
     private Button boardMenuButton;
-    
+
     @FXML
     private HBox boardHBox;
 
@@ -53,24 +61,22 @@ public class BoardViewController {
         this.cardDAO = new CardDAO();
     }
 
-    // Called by MainViewController after loading BoardView.fxml
     public void loadBoardButton(long boardId){
         this.currentBoardId = boardId;
         loadColumns(boardId);
     }
 
-    // Handler: add new column
     @FXML
     private void handleBoardNewColumnButton(ActionEvent event) {
         TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("New Column");
+        dialog.setHeaderText(null);
+        dialog.setGraphic(null);
         dialog.setContentText("Name the new Column:");
         dialog.getDialogPane().getStylesheets().add(
                 getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
         );
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(name -> {
-            // Determine next order
             int nextOrder = 0;
             Board board = boardDAO.getFullBoard(currentBoardId);
             if (board != null && board.getColumns() != null && !board.getColumns().isEmpty()) {
@@ -79,15 +85,13 @@ public class BoardViewController {
             Column newCol = new Column();
             newCol.setName(name);
             newCol.setBoardId(currentBoardId);
-            // Default new columns are BLOCKED
-            newCol.setType("BLOCKED");
+            newCol.setBlocked(false); // Default to unblocked
             newCol.setOrder(nextOrder);
             columnDAO.create(newCol);
             loadColumns(currentBoardId);
         });
     }
 
-    // Handler: go back to main view
     @FXML
     private void handleBoardMenuButton(ActionEvent event) {
         try {
@@ -105,49 +109,85 @@ public class BoardViewController {
         }
     }
 
-    // Populates the boardHBox with the columns (left to right)
     private void loadColumns(long boardId){
         boardHBox.getChildren().clear();
-
         Board board = boardDAO.getFullBoard(boardId);
         if (board == null) {
             return;
         }
-
-        // Ensure columns are ordered by the 'order' field
         board.getColumns().sort(Comparator.comparingInt(Column::getOrder));
-
         for (Column column : board.getColumns()){
             Node columnNode = createColumnNode(column);
             boardHBox.getChildren().add(columnNode);
         }
     }
 
-    // Creates a VBox for a single column and fills it with its cards (top to bottom)
     private Node createColumnNode(Column column) {
         VBox colBox = new VBox();
         colBox.setSpacing(8);
         colBox.setStyle("-fx-background-color: #161b22; -fx-padding: 15; -fx-border-color: -color-border-muted; -fx-border-width: 1; -fx-border-radius: 6; -fx-background-radius: 6;");
         colBox.setPrefWidth(220);
+        colBox.setUserData(column.getId());
 
-        // Top control grid: lock (left), title (center), gear (right)
+        // Drag and Drop for Columns
+        colBox.setOnDragDetected(event -> {
+            if (!column.isBlocked()) { // Only non-blocked columns can be dragged
+                Dragboard db = colBox.startDragAndDrop(TransferMode.MOVE);
+                db.setDragView(colBox.snapshot(null, null));
+                ClipboardContent content = new ClipboardContent();
+                content.put(DF_COLUMN, column.getId());
+                db.setContent(content);
+                event.consume();
+            }
+        });
+
+        colBox.setOnDragOver(event -> {
+            if (event.getGestureSource() != colBox && event.getDragboard().hasContent(DF_COLUMN)) {
+                event.acceptTransferModes(TransferMode.MOVE);
+            }
+            event.consume();
+        });
+
+        colBox.setOnDragEntered(event -> {
+            if (event.getGestureSource() != colBox && event.getDragboard().hasContent(DF_COLUMN)) {
+                colBox.setStyle("-fx-background-color: #2d333b; -fx-padding: 15; -fx-border-color: -color-accent-emphasis; -fx-border-width: 1; -fx-border-radius: 6; -fx-background-radius: 6;");
+            }
+        });
+
+        colBox.setOnDragExited(event -> {
+            colBox.setStyle("-fx-background-color: #161b22; -fx-padding: 15; -fx-border-color: -color-border-muted; -fx-border-width: 1; -fx-border-radius: 6; -fx-background-radius: 6;");
+        });
+
+        colBox.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasContent(DF_COLUMN)) {
+                long draggedColumnId = (Long) db.getContent(DF_COLUMN);
+                if (draggedColumnId != column.getId()) {
+                    reorderColumns(draggedColumnId, column.getOrder());
+                    success = true;
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+
+        colBox.setOnDragDone(DragEvent::consume);
+
         GridPane topGrid = new GridPane();
         ColumnConstraints c1 = new ColumnConstraints();
-        ColumnConstraints c2 = new ColumnConstraints();
-        ColumnConstraints c3 = new ColumnConstraints();
         c1.setPercentWidth(20);
+        ColumnConstraints c2 = new ColumnConstraints();
         c2.setPercentWidth(60);
+        ColumnConstraints c3 = new ColumnConstraints();
         c3.setPercentWidth(20);
         topGrid.getColumnConstraints().addAll(c1, c2, c3);
 
-        // Determine blocked state from column type
-        boolean isBlocked = "BLOCKED".equalsIgnoreCase(column.getType());
-        org.kordamp.ikonli.javafx.FontIcon lockIcon = new org.kordamp.ikonli.javafx.FontIcon(isBlocked ? "codicon-lock" : "codicon-unlock");
+        org.kordamp.ikonli.javafx.FontIcon lockIcon = new org.kordamp.ikonli.javafx.FontIcon(column.isBlocked() ? "codicon-lock" : "codicon-unlock");
         lockIcon.setIconSize(14);
         org.kordamp.ikonli.javafx.FontIcon gearIcon = new org.kordamp.ikonli.javafx.FontIcon("codicon-gear");
         gearIcon.setIconSize(16);
 
-        // Title in the center cell
         Label header = new Label(column.getName());
         header.setStyle("-fx-font-weight: bold;");
 
@@ -158,25 +198,21 @@ public class BoardViewController {
         topGrid.add(header, 1, 0);
         topGrid.add(gearIcon, 2, 0);
 
-        // Actions: toggle blocked and show gear menu
         lockIcon.setOnMouseClicked(e -> toggleColumnBlocked(column));
         gearIcon.setOnMouseClicked(e -> showColumnMenu(gearIcon, column, e));
 
         VBox cardsBox = new VBox();
         cardsBox.setSpacing(8);
         VBox.setVgrow(cardsBox, Priority.ALWAYS);
+        cardsBox.setUserData(column.getId());
 
-        // Fill cards ordered
         loadCards(cardsBox, column);
 
-        // Add "Add Card" button at the end
         Button addCardBtn = new Button();
-        // Use codicon-add icon
         org.kordamp.ikonli.javafx.FontIcon addIcon = new org.kordamp.ikonli.javafx.FontIcon("codicon-add");
         addIcon.setIconSize(16);
         addCardBtn.setGraphic(addIcon);
         addCardBtn.setContentDisplay(javafx.scene.control.ContentDisplay.GRAPHIC_ONLY);
-        // Make it circular and accent-styled
         addCardBtn.getStyleClass().add("accent");
         addCardBtn.setPrefSize(32, 32);
         addCardBtn.setMinSize(32, 32);
@@ -193,7 +229,47 @@ public class BoardViewController {
     private void loadCards(VBox cardsBox, Column column){
         cardsBox.getChildren().clear();
 
-        // Ensure cards are ordered by the 'order' field
+        // Drag and drop for dropping cards into a column
+        cardsBox.setOnDragOver(event -> {
+            if (event.getGestureSource() != cardsBox && event.getDragboard().hasContent(DF_CARD)) {
+                event.acceptTransferModes(TransferMode.MOVE);
+            }
+            event.consume();
+        });
+
+        cardsBox.setOnDragEntered(event -> {
+            if (event.getGestureSource() != cardsBox && event.getDragboard().hasContent(DF_CARD)) {
+                cardsBox.setStyle("-fx-background-color: #2d333b;");
+            }
+        });
+
+        cardsBox.setOnDragExited(event -> {
+            cardsBox.setStyle("");
+        });
+
+        cardsBox.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasContent(DF_CARD)) {
+                long draggedCardId = (Long) db.getContent(DF_CARD);
+                double dropY = event.getY();
+                int newIndex = 0;
+                for (Node node : cardsBox.getChildren()) {
+                    if (node instanceof Button && node.getUserData() != null) {
+                        if (dropY > node.getBoundsInParent().getMinY() + node.getBoundsInParent().getHeight() / 2) {
+                            newIndex++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                moveCard(draggedCardId, (long) cardsBox.getUserData(), newIndex);
+                success = true;
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+
         column.getCards().sort(Comparator.comparingInt(Card::getOrder));
 
         for (Card card : column.getCards()){
@@ -201,30 +277,37 @@ public class BoardViewController {
             cardNode.setMaxWidth(Double.MAX_VALUE);
             cardNode.setWrapText(true);
             cardNode.getStyleClass().add("card-item");
-            // Visual hint if blocked
-            if (Boolean.TRUE.equals(card.getIsBlocked())) {
-                cardNode.setStyle("-fx-background-color: #3a1f1f;");
-            }
+            cardNode.setUserData(card.getId());
+
+            // Drag and Drop for individual cards
+            cardNode.setOnDragDetected(event -> {
+                Dragboard db = cardNode.startDragAndDrop(TransferMode.MOVE);
+                db.setDragView(cardNode.snapshot(null, null));
+                ClipboardContent content = new ClipboardContent();
+                content.put(DF_CARD, card.getId());
+                db.setContent(content);
+                event.consume();
+            });
+
+            cardNode.setOnDragDone(DragEvent::consume);
             cardsBox.getChildren().add(cardNode);
         }
     }
 
-    // Toggle the blocked state using the 'type' field (BLOCKED/DEFAULT)
     private void toggleColumnBlocked(Column column) {
-        boolean isBlocked = "BLOCKED".equalsIgnoreCase(column.getType());
-        column.setType(isBlocked ? "DEFAULT" : "BLOCKED");
+        column.setBlocked(!column.isBlocked());
         columnDAO.update(column);
         loadColumns(currentBoardId);
     }
 
-    // Show context menu (Rename / Delete) anchored to the gear icon
     private void showColumnMenu(Node anchor, Column column, MouseEvent e) {
         ContextMenu menu = new ContextMenu();
         MenuItem rename = new MenuItem("Rename");
         MenuItem delete = new MenuItem("Delete");
         rename.setOnAction(a -> {
             TextInputDialog dialog = new TextInputDialog(column.getName());
-            dialog.setTitle("Rename Column");
+            dialog.setHeaderText(null);
+            dialog.setGraphic(null);
             dialog.setContentText("New name:");
             dialog.getDialogPane().getStylesheets().add(
                     getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
@@ -247,10 +330,10 @@ public class BoardViewController {
         menu.show(anchor, e.getScreenX(), e.getScreenY());
     }
 
-    // Prompt and create a new card in the given column
     private void handleAddCard(Column column) {
         TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("New Card");
+        dialog.setHeaderText(null);
+        dialog.setGraphic(null);
         dialog.setContentText("Title for the new card:");
         dialog.getDialogPane().getStylesheets().add(
                 getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
@@ -259,18 +342,96 @@ public class BoardViewController {
         result.ifPresent(title -> {
             String trimmed = title != null ? title.trim() : "";
             if (trimmed.isEmpty()) {
-                return; // ignore empty
+                return;
             }
-            // Determine next order in this column
             int nextOrder = 0;
             if (column.getCards() != null && !column.getCards().isEmpty()) {
                 nextOrder = column.getCards().stream().mapToInt(Card::getOrder).max().orElse(-1) + 1;
             }
-            // Create the card (id unused for insert)
-            Card newCard = new Card(0L, trimmed, "", column.getId(), nextOrder, false);
+            Card newCard = new Card(0L, trimmed, "", column.getId(), nextOrder);
             cardDAO.create(newCard);
-            // Reload columns to reflect the new card
             loadColumns(currentBoardId);
         });
+    }
+
+    private void reorderColumns(long draggedColumnId, int targetOrder) {
+        Board board = boardDAO.getFullBoard(currentBoardId);
+        if (board == null) return;
+
+        Column draggedColumn = board.getColumns().stream()
+                .filter(c -> c.getId() == draggedColumnId)
+                .findFirst().orElse(null);
+
+        if (draggedColumn == null) return;
+
+        int originalOrder = draggedColumn.getOrder();
+
+        if (originalOrder < targetOrder) {
+            board.getColumns().stream()
+                    .filter(c -> c.getId() != draggedColumnId && c.getOrder() > originalOrder && c.getOrder() <= targetOrder)
+                    .forEach(c -> {
+                        c.setOrder(c.getOrder() - 1);
+                        columnDAO.update(c);
+                    });
+        } else {
+            board.getColumns().stream()
+                    .filter(c -> c.getId() != draggedColumnId && c.getOrder() >= targetOrder && c.getOrder() < originalOrder)
+                    .forEach(c -> {
+                        c.setOrder(c.getOrder() + 1);
+                        columnDAO.update(c);
+                    });
+        }
+
+        draggedColumn.setOrder(targetOrder);
+        columnDAO.update(draggedColumn);
+
+        loadColumns(currentBoardId);
+    }
+
+    private void moveCard(long cardId, long newColumnId, int newPosition) {
+        Card cardToMove = cardDAO.getById(cardId);
+        if (cardToMove == null) return;
+
+        long oldColumnId = cardToMove.getColumnId();
+        int oldPosition = cardToMove.getOrder();
+
+        if (oldColumnId == newColumnId && oldPosition == newPosition) {
+            return;
+        }
+
+        Board board = boardDAO.getFullBoard(currentBoardId);
+        if (board == null) return;
+
+        Column oldColumn = board.getColumns().stream().filter(c -> c.getId() == oldColumnId).findFirst().orElse(null);
+        Column newColumn = board.getColumns().stream().filter(c -> c.getId() == newColumnId).findFirst().orElse(null);
+
+        if (oldColumn == null || newColumn == null) return;
+
+        if (oldColumnId != newColumnId) {
+            oldColumn.getCards().stream()
+                .filter(c -> c.getOrder() > oldPosition)
+                .forEach(c -> cardDAO.updateOrderAndColumn(c.getId(), oldColumnId, c.getOrder() - 1));
+
+            newColumn.getCards().stream()
+                .filter(c -> c.getOrder() >= newPosition)
+                .forEach(c -> cardDAO.updateOrderAndColumn(c.getId(), newColumnId, c.getOrder() + 1));
+
+            cardDAO.updateOrderAndColumn(cardId, newColumnId, newPosition);
+
+        } else { // Moving within the same column
+            List<Card> cards = oldColumn.getCards();
+            if (newPosition > oldPosition) { // Moved down
+                cards.stream()
+                    .filter(c -> c.getId() != cardId && c.getOrder() > oldPosition && c.getOrder() <= newPosition)
+                    .forEach(c -> cardDAO.updateOrderAndColumn(c.getId(), oldColumnId, c.getOrder() - 1));
+            } else { // Moved up
+                cards.stream()
+                    .filter(c -> c.getId() != cardId && c.getOrder() >= newPosition && c.getOrder() < oldPosition)
+                    .forEach(c -> cardDAO.updateOrderAndColumn(c.getId(), oldColumnId, c.getOrder() + 1));
+            }
+            cardDAO.updateOrderAndColumn(cardId, oldColumnId, newPosition);
+        }
+
+        loadColumns(currentBoardId);
     }
 }

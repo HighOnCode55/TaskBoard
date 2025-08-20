@@ -11,13 +11,13 @@ import java.util.List;
 
 public class ColumnDAO {
     public void create(Column column){
-        String sql = "INSERT INTO columns (name, `order`, type, board_id) VALUES (?, ?, ?, ?);";
+        String sql = "INSERT INTO columns (name, `order`, is_blocked, board_id) VALUES (?, ?, ?, ?);";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
                 pstmt.setString(1, column.getName());
                 pstmt.setInt(2, column.getOrder());
-                pstmt.setString(3, column.getType());
+                pstmt.setBoolean(3, column.isBlocked());
                 pstmt.setLong(4, column.getBoardId());
                 int affected = pstmt.executeUpdate();
                 if (affected > 0) {
@@ -33,13 +33,13 @@ public class ColumnDAO {
         }
     }
     public void update(Column column){
-        String sql = "UPDATE columns SET name = ?, `order` = ?, type = ? WHERE id = ?";
+        String sql = "UPDATE columns SET name = ?, `order` = ?, is_blocked = ? WHERE id = ?";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, column.getName());
                 pstmt.setInt(2, column.getOrder());
-                pstmt.setString(3, column.getType());
+                pstmt.setBoolean(3, column.isBlocked());
                 pstmt.setLong(4, column.getId());
                 pstmt.executeUpdate();
             }
@@ -65,7 +65,7 @@ public class ColumnDAO {
         }
     }
     public Column getById(long columnId){
-        String sql = "SELECT id, name, `order`, type, board_id FROM columns WHERE id=?";
+        String sql = "SELECT id, name, `order`, is_blocked, board_id FROM columns WHERE id=?";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -76,7 +76,7 @@ public class ColumnDAO {
                         c.setId(rs.getLong("id"));
                         c.setName(rs.getString("name"));
                         c.setOrder(rs.getInt("order"));
-                        c.setType(rs.getString("type"));
+                        c.setBlocked(rs.getBoolean("is_blocked"));
                         c.setBoardId(rs.getLong("board_id"));
                         return c;
                     }
@@ -88,7 +88,7 @@ public class ColumnDAO {
         }
     }
     public List<Column> getByBoardId(long boardId){
-        String sql = "SELECT id, name, `order`, type, board_id FROM columns WHERE board_id=? ORDER BY `order` ASC";
+        String sql = "SELECT id, name, `order`, is_blocked, board_id FROM columns WHERE board_id=? ORDER BY `order` ASC";
         try {
             Connection conn = DatabaseConnection.getConnection();
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -100,7 +100,7 @@ public class ColumnDAO {
                         c.setId(rs.getLong("id"));
                         c.setName(rs.getString("name"));
                         c.setOrder(rs.getInt("order"));
-                        c.setType(rs.getString("type"));
+                        c.setBlocked(rs.getBoolean("is_blocked"));
                         c.setBoardId(rs.getLong("board_id"));
                         list.add(c);
                     }

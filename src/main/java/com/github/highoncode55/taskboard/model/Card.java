@@ -11,5 +11,4 @@ public class Card {
     private final String description;
     private final long columnId;
     private final int order;
-    private Boolean isBlocked;
 }
