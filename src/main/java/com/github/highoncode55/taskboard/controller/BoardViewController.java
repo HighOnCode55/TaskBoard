@@ -73,7 +73,7 @@ public class BoardViewController {
         dialog.setGraphic(null);
         dialog.setContentText("Name the new Column:");
         dialog.getDialogPane().getStylesheets().add(
-                getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
+                getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm()
         );
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(name -> {
@@ -100,7 +100,7 @@ public class BoardViewController {
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             Scene scene = new Scene(root);
             scene.getStylesheets().add(
-                    getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
+                    getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm()
             );
             stage.setScene(scene);
             stage.show();
@@ -310,7 +310,7 @@ public class BoardViewController {
             dialog.setGraphic(null);
             dialog.setContentText("New name:");
             dialog.getDialogPane().getStylesheets().add(
-                    getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
+                    getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm()
             );
             Optional<String> res = dialog.showAndWait();
             res.ifPresent(newName -> {
@@ -327,6 +327,15 @@ public class BoardViewController {
             loadColumns(currentBoardId);
         });
         menu.getItems().addAll(rename, delete);
+
+        // A new scene is created for the menu, so we need to apply the stylesheet to it
+        menu.setOnShown(event -> {
+            String stylesheet = getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm();
+            if (menu.getScene() != null) {
+                menu.getScene().getStylesheets().add(stylesheet);
+            }
+        });
+
         menu.show(anchor, e.getScreenX(), e.getScreenY());
     }
 
@@ -336,7 +345,7 @@ public class BoardViewController {
         dialog.setGraphic(null);
         dialog.setContentText("Title for the new card:");
         dialog.getDialogPane().getStylesheets().add(
-                getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
+                getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm()
         );
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(title -> {
