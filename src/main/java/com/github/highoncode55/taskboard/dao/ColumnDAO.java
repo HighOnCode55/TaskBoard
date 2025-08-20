@@ -33,8 +33,36 @@ public class ColumnDAO {
         }
     }
     public void update(Column column){
+        String sql = "UPDATE columns SET name = ?, `order` = ?, type = ? WHERE id = ?";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, column.getName());
+                pstmt.setInt(2, column.getOrder());
+                pstmt.setString(3, column.getType());
+                pstmt.setLong(4, column.getId());
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
     public void delete(long columnId){
+        // First delete cards in this column to satisfy FK constraint, then delete the column
+        String deleteCardsSql = "DELETE FROM cards WHERE column_id=?";
+        String deleteColumnSql = "DELETE FROM columns WHERE id=?";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement delCards = conn.prepareStatement(deleteCardsSql);
+                 PreparedStatement delCol = conn.prepareStatement(deleteColumnSql)) {
+                delCards.setLong(1, columnId);
+                delCards.executeUpdate();
+                delCol.setLong(1, columnId);
+                delCol.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
     public Column getById(long columnId){
         String sql = "SELECT id, name, `order`, type, board_id FROM columns WHERE id=?";

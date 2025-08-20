@@ -47,7 +47,7 @@ public class TaskBoard extends Application {
     public void start(Stage stage) throws IOException, LiquibaseException {
         runLiquibase();
         FXMLLoader fxmlLoader = new FXMLLoader(TaskBoard.class.getResource("views/MainView.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 320, 240);
+        Scene scene = new Scene(fxmlLoader.load());
         stage.setTitle("Task Board");
         stage.setScene(scene);
         stage.show();

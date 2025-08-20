@@ -23,6 +23,9 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.stage.Stage;
 import javafx.geometry.Pos;
 import javafx.geometry.HPos;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.input.MouseEvent;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -76,7 +79,8 @@ public class BoardViewController {
             Column newCol = new Column();
             newCol.setName(name);
             newCol.setBoardId(currentBoardId);
-            newCol.setType("DEFAULT");
+            // Default new columns are BLOCKED
+            newCol.setType("BLOCKED");
             newCol.setOrder(nextOrder);
             columnDAO.create(newCol);
             loadColumns(currentBoardId);
@@ -126,27 +130,37 @@ public class BoardViewController {
         colBox.setStyle("-fx-background-color: #161b22; -fx-padding: 15; -fx-border-color: -color-border-muted; -fx-border-width: 1; -fx-border-radius: 6; -fx-background-radius: 6;");
         colBox.setPrefWidth(220);
 
-        // Top control grid with lock (left) and gear (right)
+        // Top control grid: lock (left), title (center), gear (right)
         GridPane topGrid = new GridPane();
         ColumnConstraints c1 = new ColumnConstraints();
         ColumnConstraints c2 = new ColumnConstraints();
-        c1.setPercentWidth(50);
-        c2.setPercentWidth(50);
-        topGrid.getColumnConstraints().addAll(c1, c2);
-        org.kordamp.ikonli.javafx.FontIcon lockIcon = new org.kordamp.ikonli.javafx.FontIcon("codicon-unlock");
-        lockIcon.setIconSize(12);
+        ColumnConstraints c3 = new ColumnConstraints();
+        c1.setPercentWidth(20);
+        c2.setPercentWidth(60);
+        c3.setPercentWidth(20);
+        topGrid.getColumnConstraints().addAll(c1, c2, c3);
+
+        // Determine blocked state from column type
+        boolean isBlocked = "BLOCKED".equalsIgnoreCase(column.getType());
+        org.kordamp.ikonli.javafx.FontIcon lockIcon = new org.kordamp.ikonli.javafx.FontIcon(isBlocked ? "codicon-lock" : "codicon-unlock");
+        lockIcon.setIconSize(14);
         org.kordamp.ikonli.javafx.FontIcon gearIcon = new org.kordamp.ikonli.javafx.FontIcon("codicon-gear");
         gearIcon.setIconSize(16);
-        GridPane.setHalignment(lockIcon, HPos.LEFT);
-        GridPane.setHalignment(gearIcon, HPos.RIGHT);
-        topGrid.add(lockIcon, 0, 0);
-        topGrid.add(gearIcon, 1, 0);
 
-        // Header with column name centered
+        // Title in the center cell
         Label header = new Label(column.getName());
         header.setStyle("-fx-font-weight: bold;");
-        HBox headerBox = new HBox(header);
-        headerBox.setAlignment(Pos.CENTER);
+
+        GridPane.setHalignment(lockIcon, HPos.LEFT);
+        GridPane.setHalignment(header, HPos.CENTER);
+        GridPane.setHalignment(gearIcon, HPos.RIGHT);
+        topGrid.add(lockIcon, 0, 0);
+        topGrid.add(header, 1, 0);
+        topGrid.add(gearIcon, 2, 0);
+
+        // Actions: toggle blocked and show gear menu
+        lockIcon.setOnMouseClicked(e -> toggleColumnBlocked(column));
+        gearIcon.setOnMouseClicked(e -> showColumnMenu(gearIcon, column, e));
 
         VBox cardsBox = new VBox();
         cardsBox.setSpacing(8);
@@ -172,7 +186,7 @@ public class BoardViewController {
         HBox addBtnBox = new HBox(addCardBtn);
         addBtnBox.setAlignment(Pos.CENTER);
 
-        colBox.getChildren().addAll(topGrid, headerBox, cardsBox, addBtnBox);
+        colBox.getChildren().addAll(topGrid, cardsBox, addBtnBox);
         return colBox;
     }
 
@@ -193,6 +207,44 @@ public class BoardViewController {
             }
             cardsBox.getChildren().add(cardNode);
         }
+    }
+
+    // Toggle the blocked state using the 'type' field (BLOCKED/DEFAULT)
+    private void toggleColumnBlocked(Column column) {
+        boolean isBlocked = "BLOCKED".equalsIgnoreCase(column.getType());
+        column.setType(isBlocked ? "DEFAULT" : "BLOCKED");
+        columnDAO.update(column);
+        loadColumns(currentBoardId);
+    }
+
+    // Show context menu (Rename / Delete) anchored to the gear icon
+    private void showColumnMenu(Node anchor, Column column, MouseEvent e) {
+        ContextMenu menu = new ContextMenu();
+        MenuItem rename = new MenuItem("Rename");
+        MenuItem delete = new MenuItem("Delete");
+        rename.setOnAction(a -> {
+            TextInputDialog dialog = new TextInputDialog(column.getName());
+            dialog.setTitle("Rename Column");
+            dialog.setContentText("New name:");
+            dialog.getDialogPane().getStylesheets().add(
+                    getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
+            );
+            Optional<String> res = dialog.showAndWait();
+            res.ifPresent(newName -> {
+                String trimmed = newName != null ? newName.trim() : "";
+                if (!trimmed.isEmpty()) {
+                    column.setName(trimmed);
+                    columnDAO.update(column);
+                    loadColumns(currentBoardId);
+                }
+            });
+        });
+        delete.setOnAction(a -> {
+            columnDAO.delete(column.getId());
+            loadColumns(currentBoardId);
+        });
+        menu.getItems().addAll(rename, delete);
+        menu.show(anchor, e.getScreenX(), e.getScreenY());
     }
 
     // Prompt and create a new card in the given column
