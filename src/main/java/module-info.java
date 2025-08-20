@@ -1,4 +1,4 @@
-module com.github.highoncode55.taskboard.taskboard {
+module com.github.highoncode55.taskboard {
     requires javafx.controls;
     requires javafx.fxml;
 
@@ -12,7 +12,6 @@ module com.github.highoncode55.taskboard.taskboard {
     requires mysql.connector.j;
     requires atlantafx.base;
     requires javafx.graphics;
-    requires com.github.highoncode55.taskboard.taskboard;
 
 
     opens com.github.highoncode55.taskboard to javafx.fxml;

@@ -21,7 +21,28 @@ public class CardDAO {
     }
 
     public List<Card> getByColumnId(long columnId){
-        return null;
+        String sql = "SELECT id, title, description, column_id, `order`, is_blocked FROM cards WHERE column_id=? ORDER BY `order` ASC";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setLong(1, columnId);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    java.util.ArrayList<Card> cards = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        long id = rs.getLong("id");
+                        String title = rs.getString("title");
+                        String description = rs.getString("description");
+                        long colId = rs.getLong("column_id");
+                        int order = rs.getInt("order");
+                        Boolean isBlocked = rs.getBoolean("is_blocked");
+                        cards.add(new Card(id, title, description, colId, order, isBlocked));
+                    }
+                    return cards;
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Card getById(long cardId){
@@ -34,7 +55,7 @@ public class CardDAO {
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
                         long id = rs.getLong("id");
-                        String title = rs.getString("name");
+                        String title = rs.getString("title");
                         String description = rs.getString("description");
                         long columnId = rs.getLong("column_id");
                         int order = rs.getInt("order");

@@ -54,7 +54,7 @@ public class MainViewController {
         try {
 
             // 1. Carrega o arquivo FXML da nova cena (BoardView.fxml)
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("views/BoardView.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/github/highoncode55/taskboard/views/BoardView.fxml"));
             Parent boardViewRoot = loader.load();
 
             // 2. (MUITO IMPORTANTE) Pega a instância do controller da nova cena

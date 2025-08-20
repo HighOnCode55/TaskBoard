@@ -12,8 +12,8 @@ import java.util.List;
 public class Column {
     private String name;
     private long id;
-    private String boardId;
+    private long boardId;
     private String type;
-    private String order;
+    private int order;
     private List<Card> cards = new ArrayList<>();
 }
