@@ -11,7 +11,21 @@ import java.util.List;
 
 public class CardDAO {
     public void create(Card card){
-
+        String sql = "INSERT INTO cards (title, description, column_id, `order`, is_blocked) VALUES (?, ?, ?, ?, ?);";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                pstmt.setString(1, card.getTitle());
+                pstmt.setString(2, card.getDescription());
+                pstmt.setLong(3, card.getColumnId());
+                pstmt.setInt(4, card.getOrder());
+                pstmt.setBoolean(5, card.getIsBlocked() != null ? card.getIsBlocked() : false);
+                pstmt.executeUpdate();
+                // We could read generated keys here, but Card fields are final; skipping assignment.
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
     public void update(Card card){
 

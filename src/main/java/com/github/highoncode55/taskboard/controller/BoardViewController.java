@@ -2,6 +2,7 @@ package com.github.highoncode55.taskboard.controller;
 
 import com.github.highoncode55.taskboard.dao.BoardDAO;
 import com.github.highoncode55.taskboard.dao.ColumnDAO;
+import com.github.highoncode55.taskboard.dao.CardDAO;
 import com.github.highoncode55.taskboard.model.Board;
 import com.github.highoncode55.taskboard.model.Card;
 import com.github.highoncode55.taskboard.model.Column;
@@ -17,7 +18,11 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.stage.Stage;
+import javafx.geometry.Pos;
+import javafx.geometry.HPos;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -26,6 +31,7 @@ import java.util.Optional;
 public class BoardViewController {
     private BoardDAO boardDAO;
     private ColumnDAO columnDAO;
+    private CardDAO cardDAO;
     private long currentBoardId;
 
     @FXML
@@ -41,6 +47,7 @@ public class BoardViewController {
     private void initialize(){
         this.boardDAO = new BoardDAO();
         this.columnDAO = new ColumnDAO();
+        this.cardDAO = new CardDAO();
     }
 
     // Called by MainViewController after loading BoardView.fxml
@@ -119,9 +126,27 @@ public class BoardViewController {
         colBox.setStyle("-fx-background-color: #161b22; -fx-padding: 15; -fx-border-color: -color-border-muted; -fx-border-width: 1; -fx-border-radius: 6; -fx-background-radius: 6;");
         colBox.setPrefWidth(220);
 
-        // Header with column name (icons can be added later)
+        // Top control grid with lock (left) and gear (right)
+        GridPane topGrid = new GridPane();
+        ColumnConstraints c1 = new ColumnConstraints();
+        ColumnConstraints c2 = new ColumnConstraints();
+        c1.setPercentWidth(50);
+        c2.setPercentWidth(50);
+        topGrid.getColumnConstraints().addAll(c1, c2);
+        org.kordamp.ikonli.javafx.FontIcon lockIcon = new org.kordamp.ikonli.javafx.FontIcon("codicon-unlock");
+        lockIcon.setIconSize(12);
+        org.kordamp.ikonli.javafx.FontIcon gearIcon = new org.kordamp.ikonli.javafx.FontIcon("codicon-gear");
+        gearIcon.setIconSize(16);
+        GridPane.setHalignment(lockIcon, HPos.LEFT);
+        GridPane.setHalignment(gearIcon, HPos.RIGHT);
+        topGrid.add(lockIcon, 0, 0);
+        topGrid.add(gearIcon, 1, 0);
+
+        // Header with column name centered
         Label header = new Label(column.getName());
         header.setStyle("-fx-font-weight: bold;");
+        HBox headerBox = new HBox(header);
+        headerBox.setAlignment(Pos.CENTER);
 
         VBox cardsBox = new VBox();
         cardsBox.setSpacing(8);
@@ -130,7 +155,24 @@ public class BoardViewController {
         // Fill cards ordered
         loadCards(cardsBox, column);
 
-        colBox.getChildren().addAll(header, cardsBox);
+        // Add "Add Card" button at the end
+        Button addCardBtn = new Button();
+        // Use codicon-add icon
+        org.kordamp.ikonli.javafx.FontIcon addIcon = new org.kordamp.ikonli.javafx.FontIcon("codicon-add");
+        addIcon.setIconSize(16);
+        addCardBtn.setGraphic(addIcon);
+        addCardBtn.setContentDisplay(javafx.scene.control.ContentDisplay.GRAPHIC_ONLY);
+        // Make it circular and accent-styled
+        addCardBtn.getStyleClass().add("accent");
+        addCardBtn.setPrefSize(32, 32);
+        addCardBtn.setMinSize(32, 32);
+        addCardBtn.setMaxSize(32, 32);
+        addCardBtn.setStyle("-fx-background-radius: 16; -fx-padding: 0;");
+        addCardBtn.setOnAction(e -> handleAddCard(column));
+        HBox addBtnBox = new HBox(addCardBtn);
+        addBtnBox.setAlignment(Pos.CENTER);
+
+        colBox.getChildren().addAll(topGrid, headerBox, cardsBox, addBtnBox);
         return colBox;
     }
 
@@ -151,5 +193,32 @@ public class BoardViewController {
             }
             cardsBox.getChildren().add(cardNode);
         }
+    }
+
+    // Prompt and create a new card in the given column
+    private void handleAddCard(Column column) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("New Card");
+        dialog.setContentText("Title for the new card:");
+        dialog.getDialogPane().getStylesheets().add(
+                getClass().getResource("/atlantafx/base/theme/primer-dark.css").toExternalForm()
+        );
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(title -> {
+            String trimmed = title != null ? title.trim() : "";
+            if (trimmed.isEmpty()) {
+                return; // ignore empty
+            }
+            // Determine next order in this column
+            int nextOrder = 0;
+            if (column.getCards() != null && !column.getCards().isEmpty()) {
+                nextOrder = column.getCards().stream().mapToInt(Card::getOrder).max().orElse(-1) + 1;
+            }
+            // Create the card (id unused for insert)
+            Card newCard = new Card(0L, trimmed, "", column.getId(), nextOrder, false);
+            cardDAO.create(newCard);
+            // Reload columns to reflect the new card
+            loadColumns(currentBoardId);
+        });
     }
 }
