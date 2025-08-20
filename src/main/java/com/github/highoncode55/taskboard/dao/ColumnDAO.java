@@ -11,6 +11,26 @@ import java.util.List;
 
 public class ColumnDAO {
     public void create(Column column){
+        String sql = "INSERT INTO columns (name, `order`, type, board_id) VALUES (?, ?, ?, ?);";
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                pstmt.setString(1, column.getName());
+                pstmt.setInt(2, column.getOrder());
+                pstmt.setString(3, column.getType());
+                pstmt.setLong(4, column.getBoardId());
+                int affected = pstmt.executeUpdate();
+                if (affected > 0) {
+                    try (java.sql.ResultSet keys = pstmt.getGeneratedKeys()) {
+                        if (keys.next()) {
+                            column.setId(keys.getLong(1));
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
     public void update(Column column){
     }
