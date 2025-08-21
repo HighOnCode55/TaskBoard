@@ -9,22 +9,20 @@ import com.github.highoncode55.taskboard.model.Column;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 import javafx.geometry.Pos;
 import javafx.geometry.HPos;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.DragEvent;
@@ -116,7 +114,7 @@ public class BoardViewController {
             return;
         }
         board.getColumns().sort(Comparator.comparingInt(Column::getOrder));
-        for (Column column : board.getColumns()){
+        for (Column column : board.getColumns()) {
             Node columnNode = createColumnNode(column);
             boardHBox.getChildren().add(columnNode);
         }
@@ -279,6 +277,8 @@ public class BoardViewController {
             cardNode.getStyleClass().add("card-item");
             cardNode.setUserData(card.getId());
 
+            cardNode.setOnAction(event -> showCardDetailsDialog(card));
+
             // Drag and Drop for individual cards
             cardNode.setOnDragDetected(event -> {
                 Dragboard db = cardNode.startDragAndDrop(TransferMode.MOVE);
@@ -340,25 +340,151 @@ public class BoardViewController {
     }
 
     private void handleAddCard(Column column) {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setHeaderText(null);
-        dialog.setGraphic(null);
-        dialog.setContentText("Title for the new card:");
+        // Create the custom dialog.
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("New Card");
+        dialog.setHeaderText("Create a new card");
         dialog.getDialogPane().getStylesheets().add(
                 getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm()
         );
-        Optional<String> result = dialog.showAndWait();
-        result.ifPresent(title -> {
-            String trimmed = title != null ? title.trim() : "";
-            if (trimmed.isEmpty()) {
+
+        // Set the button types.
+        ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
+
+        // Create the title and description labels and fields.
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField titleField = new TextField();
+        titleField.setPromptText("Title");
+        TextArea descriptionArea = new TextArea();
+        descriptionArea.setPromptText("Description");
+        descriptionArea.getStyleClass().add("description-area");
+
+        grid.add(new Label("Title:"), 0, 0);
+        grid.add(titleField, 1, 0);
+        grid.add(new Label("Description:"), 0, 1);
+        grid.add(descriptionArea, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Enable/Disable create button depending on whether a title was entered.
+        Node createButton = dialog.getDialogPane().lookupButton(createButtonType);
+        createButton.setDisable(true);
+
+        titleField.textProperty().addListener((observable, oldValue, newValue) -> {
+            createButton.setDisable(newValue.trim().isEmpty());
+        });
+
+        // Convert the result to a title-description pair when the create button is clicked.
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == createButtonType) {
+                return new Pair<>(titleField.getText(), descriptionArea.getText());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+
+        result.ifPresent(titleDescription -> {
+            String title = titleDescription.getKey();
+            String description = titleDescription.getValue();
+            String trimmedTitle = title != null ? title.trim() : "";
+            if (trimmedTitle.isEmpty()) {
                 return;
             }
             int nextOrder = 0;
             if (column.getCards() != null && !column.getCards().isEmpty()) {
                 nextOrder = column.getCards().stream().mapToInt(Card::getOrder).max().orElse(-1) + 1;
             }
-            Card newCard = new Card(0L, trimmed, "", column.getId(), nextOrder);
+            Card newCard = new Card(0L, trimmedTitle, description, column.getId(), nextOrder);
             cardDAO.create(newCard);
+            loadColumns(currentBoardId);
+        });
+    }
+
+    private void showCardDetailsDialog(Card card) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Card Details");
+        alert.setHeaderText(card.getTitle());
+
+        TextArea descriptionArea = new TextArea(card.getDescription());
+        descriptionArea.setEditable(false);
+        descriptionArea.setWrapText(true);
+        descriptionArea.getStyleClass().add("description-area");
+        alert.getDialogPane().setContent(descriptionArea);
+
+        alert.getDialogPane().getStylesheets().add(
+                getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm()
+        );
+
+        ButtonType editButtonType = new ButtonType("Edit");
+        alert.getButtonTypes().setAll(editButtonType, ButtonType.CLOSE);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == editButtonType) {
+            showEditCardDialog(card);
+        }
+    }
+
+    private void showEditCardDialog(Card card) {
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Edit Card");
+        dialog.setHeaderText("Edit card title and description");
+        dialog.getDialogPane().getStylesheets().add(
+                getClass().getResource("/com/github/highoncode55/taskboard/css/primer-dark.css").toExternalForm()
+        );
+
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField titleField = new TextField(card.getTitle());
+        titleField.setPromptText("Title");
+        TextArea descriptionArea = new TextArea(card.getDescription());
+        descriptionArea.setPromptText("Description");
+        descriptionArea.getStyleClass().add("description-area");
+
+        grid.add(new Label("Title:"), 0, 0);
+        grid.add(titleField, 1, 0);
+        grid.add(new Label("Description:"), 0, 1);
+        grid.add(descriptionArea, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.setDisable(titleField.getText().trim().isEmpty());
+
+        titleField.textProperty().addListener((observable, oldValue, newValue) -> {
+            saveButton.setDisable(newValue.trim().isEmpty());
+        });
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                return new Pair<>(titleField.getText(), descriptionArea.getText());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+
+        result.ifPresent(titleDescription -> {
+            String title = titleDescription.getKey();
+            String description = titleDescription.getValue();
+            String trimmedTitle = title != null ? title.trim() : "";
+            if (trimmedTitle.isEmpty()) {
+                return;
+            }
+            card.setTitle(trimmedTitle);
+            card.setDescription(description);
+            cardDAO.update(card);
             loadColumns(currentBoardId);
         });
     }

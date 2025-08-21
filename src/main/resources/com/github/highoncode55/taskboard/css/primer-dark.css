@@ -4970,3 +4970,21 @@ Text {
   -fx-opacity: 0.85;
   -fx-effect: dropshadow(three-pass-box, -color-shadow-default, 8px, 0.6, 0, 2);
 }
+
+.description-area .content {
+    -fx-background-color: -color-bg-default; /* Use a sua variável de cor de fundo escura */
+}
+
+/*
+ * Regra opcional, mas recomendada, para estilizar a borda e o prompt text
+ * O seletor .description-area.text-area é mais específico e garante
+ * que a regra se aplique a um TextArea que tenha sua classe customizada.
+*/
+.description-area.text-area {
+    -fx-text-fill: -color-fg-default; /* Define a cor do texto digitado */
+    -fx-prompt-text-fill: -color-fg-subtle; /* Define a cor do texto do prompt */
+
+    /* Estiliza a borda para combinar com o tema */
+    -fx-border-color: -color-border-muted;
+    -fx-background-color: -color-bg-inset, -color-bg-default; /* Fundo geral e da "canaleta" da scrollbar */
+}

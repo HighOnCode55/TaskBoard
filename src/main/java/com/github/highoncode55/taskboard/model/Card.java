@@ -7,8 +7,8 @@ import lombok.Setter;
 @Getter @Setter
 public class Card {
     private final long id;
-    private final String title;
-    private final String description;
-    private final long columnId;
-    private final int order;
+    private String title;
+    private String description;
+    private long columnId;
+    private int order;
 }
